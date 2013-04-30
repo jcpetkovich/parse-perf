@@ -82,7 +82,7 @@ sub parse_perf {
         }
         return %data;
     }
-    return undef;
+    return;
 }
 
 =head1 AUTHOR

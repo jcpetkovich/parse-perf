@@ -26,6 +26,8 @@ open my $fh, "<", $filename;
 my @data;
 while ( not eof $fh ) {
     if ( my %data = parse_perf($fh) ) {
+        use Data::Dumper;
+        print Dumper(\%data);
         push @data, {%data};
     }
 }
