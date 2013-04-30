@@ -11,7 +11,7 @@ WriteMakefile(
     LICENSE          => 'Artistic_2_0',
     PL_FILES         => {},
     EXE_FILES        => [ 'parse-perf' ],
-    MIN_PERL_VERSION => 5.006,
+    MIN_PERL_VERSION => 5.012,
     CONFIGURE_REQUIRES => {
         'ExtUtils::MakeMaker' => 0,
     },

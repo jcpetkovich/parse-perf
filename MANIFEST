@@ -2,7 +2,8 @@ Changes
 lib/Parse/Perf.pm
 Makefile.PL
 MANIFEST			This list of files
-README
+parse-perf
+README.md
 t/00-load.t
 t/manifest.t
 t/pod-coverage.t

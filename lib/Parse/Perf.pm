@@ -1,8 +1,10 @@
 package Parse::Perf;
 
-use 5.006;
+use v5.12;
 use strict;
 use warnings FATAL => 'all';
+use Carp;
+use Exporter 'import';
 
 =head1 NAME
 
@@ -21,32 +23,66 @@ our $VERSION = '0.01';
 
 Quick summary of what the module does.
 
-Perhaps a little code snippet.
-
-    use Parse::Perf;
-
-    my $foo = Parse::Perf->new();
-    ...
-
 =head1 EXPORT
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+write_outfile parse_perf
+
+=cut
+
+our @EXPORT = qw( write_outfile parse_perf );
 
 =head1 SUBROUTINES/METHODS
 
-=head2 function1
+=head2 write_outfile
+
+Write the output in a CSV like way.
 
 =cut
 
-sub function1 {
+sub write_outfile {
+    my ($oh, @data) = @_;
+
+    print $oh "name,value,extra,percent\n";
+    for my $datum (@data) {
+        say $oh join( ",",
+            map { defined( $datum->{$_} ) ? $datum->{$_} : "" }
+              qw( name value extra_data percentage ) );
+    }
 }
 
-=head2 function2
+=head2 parse_perf
+
+Parse one entry of perf output. The perf entry could span multiple
+lines.
+
+Returns a hash table of the data or undef if no data was found.
 
 =cut
 
-sub function2 {
+sub parse_perf {
+    my ($fh) = @_;
+    my $line = <$fh>;
+
+    # If line looks like an entry
+    if ( $line =~ /^\s+\d+/ ) {
+        my %data;
+
+        my ( $value, $measurment_name ) = $line =~ /^\s+([\d\.]+)\s+(\S+)/;
+        $data{value} = $value;
+        $data{name}  = $measurment_name;
+
+        # Sometimes split across two lines
+        $line = <$fh> unless $line =~ /#/;
+
+        if ( my ($extra_data) = $line =~ /#\s+([\d\.]+)/ ) {
+            $data{extra_data} = $extra_data;
+        }
+        if ( my ($percentage) = $line =~ /\[(.*)%\]/ ) {
+            $data{percentage} = $percentage;
+        }
+        return %data;
+    }
+    return undef;
 }
 
 =head1 AUTHOR
@@ -58,9 +94,6 @@ Jean-Christophe Petkovich, C<< <jcpetkovich at gmail.com> >>
 Please report any bugs or feature requests to C<bug-parse-perf at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Parse-Perf>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
-
-
-
 
 =head1 SUPPORT
 
