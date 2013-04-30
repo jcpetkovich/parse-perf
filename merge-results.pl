@@ -28,11 +28,11 @@ my $rule = File::Find::Rule->new;
 sub get_job_row {
     my ($job_id) = @_;
 
-    my $file = shift $rule->new->find()->name("*_results_index.csv")
-      ->in($directory);
+    my $file =
+      shift $rule->new->find()->name("*_results_index.csv")->in($directory);
 
     my $fh = IO::File->new( $file, "r" );
-    my $csv = Text::CSV->new( { binary => 1 } );
+    my $csv = Text::CSV->new( { binary => 1, auto_diag => 1 } );
     while ( my $row = $csv->getline($fh) ) {
         if ( $row->[1] =~ /$job_id/ ) {
             return $row;
@@ -40,7 +40,7 @@ sub get_job_row {
     }
 }
 
-sub process_job {
+sub parse_job_file {
 
     my ($job_tar_ball) = @_;
 
@@ -61,9 +61,30 @@ sub process_job {
     }
 }
 
+sub consolidate_data {
+    my ($job_dir) = @_;
+
+    my @files = $rule->new->file()->name("*.csv")->in($directory);
+
+    for my $file (@files) {
+        my $csv = Text::CSV->new( { binary => 1, auto_diag => 1 } );
+        my $fh = IO::File->new( $file, "r" );
+        my $header = $csv->getline($fh);
+        my %data;
+        while ( my $row = $csv->getline($fh) ) {
+            push @data, $row->[0], $row->[0]
+        }
+    }
+}
+
 for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
     $tarfile = catfile( $directory, $tarfile );
-    process_job($tarfile);
+    parse_job_file($tarfile);
+}
+
+for my $job_dir ( $rule->new->directory()->in($directory) ) {
+    $job_dir = catfile( $directory, $job_dir );
+    consolidate_data($job_dir);
 }
 
 __END__
