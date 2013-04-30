@@ -18,7 +18,6 @@ Version 0.01
 
 our $VERSION = '0.01';
 
-
 =head1 SYNOPSIS
 
 Quick summary of what the module does.
@@ -40,7 +39,7 @@ Write the output in a CSV like way.
 =cut
 
 sub write_outfile {
-    my ($oh, @data) = @_;
+    my ( $oh, @data ) = @_;
 
     print $oh "name,value,extra,percent\n";
     for my $datum (@data) {
@@ -171,4 +170,4 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =cut
 
-1; # End of Parse::Perf
+1;    # End of Parse::Perf

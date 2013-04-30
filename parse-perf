@@ -14,27 +14,29 @@ use Parse::Perf;
 
 my $filename;
 my $outfile = "out.csv";
+my $datamill = 0;
 
-GetOptions( "outfile|o=s" => \$outfile );
+GetOptions( "outfile|o=s" => \$outfile, "datamill|d" => \$datamill);
 
 if ( @ARGV != 1 ) {
     croak "Should have one input file argument";
 }
 
 $filename = shift @ARGV;
+
 open my $fh, "<", $filename;
 my @data;
 while ( not eof $fh ) {
     if ( my %data = parse_perf($fh) ) {
         use Data::Dumper;
-        print Dumper(\%data);
+        print Dumper( \%data );
         push @data, {%data};
     }
 }
 close $fh;
 
 open my $oh, ">", $outfile;
-write_outfile($oh, @data);
+write_outfile( $oh, @data );
 close $oh;
 
 __END__
