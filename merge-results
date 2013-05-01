@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# merge-results.pl --- Merge datamill results.
+# merge-results --- Merge datamill results.
 # Author: Jean-Christophe Petkovich <jcpetkovich@gmail.com>
 # Created: 29 Apr 2013
 # Version: 0.01
@@ -15,6 +15,7 @@ use File::Spec::Functions qw( catfile rootdir );
 use File::Find::Rule;
 use Try::Tiny;
 use autodie;
+use Parse::Perf;
 use Data::Dumper;
 
 GetOptions();
@@ -40,8 +41,7 @@ sub get_job_row {
     }
 }
 
-sub parse_job_file {
-
+sub prepare_job {
     my ($job_tar_ball) = @_;
 
     my $job_dir = $job_tar_ball =~ s/\.tar\.gz$//r;
@@ -57,51 +57,39 @@ sub parse_job_file {
 
     for my $file (@logs) {
         my $output = $file =~ s/\.txt/\.csv/r;
-        `parse-perf $file -o $output`;
+        parse_and_dump $file, $output;
     }
 }
 
-sub consolidate_data {
-    my ($job_dir) = @_;
+sub flatten_job_data {
+    my ($tarfile) = @_;
+    my $job_dir = $tarfile =~ s/\.tar\.gz$//r;
 
-    my @files = $rule->new->file()->name("*.csv")->in($directory);
+    my $csvs = map { catfile( $job_dir, $_ ) }
+      $rule->new->file()->name("*.csv")->in($job_dir);
 
-    for my $file (@files) {
-        my $csv = Text::CSV->new( { binary => 1, auto_diag => 1 } );
-        my $fh = IO::File->new( $file, "r" );
-        my $header = $csv->getline($fh);
-        my %data;
-        while ( my $row = $csv->getline($fh) ) {
-            push @data, $row->[0], $row->[0]
-        }
-    }
 }
 
 for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
     $tarfile = catfile( $directory, $tarfile );
-    parse_job_file($tarfile);
-}
-
-for my $job_dir ( $rule->new->directory()->in($directory) ) {
-    $job_dir = catfile( $directory, $job_dir );
-    consolidate_data($job_dir);
+    prepare_job($tarfile);
 }
 
 __END__
 
 =head1 NAME
 
-merge-results.pl - Describe the usage of script briefly
+merge-results - Describe the usage of script briefly
 
 =head1 SYNOPSIS
 
-merge-results.pl [options] args
+merge-results [options] args
 
       -opt --long      Option description
 
 =head1 DESCRIPTION
 
-Stub documentation for merge-results.pl, 
+Stub documentation for merge-results, 
 
 =head1 AUTHOR
 

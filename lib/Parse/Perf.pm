@@ -4,6 +4,7 @@ use v5.12;
 use strict;
 use warnings FATAL => 'all';
 use Carp;
+use autodie;
 use Exporter 'import';
 
 =head1 NAME
@@ -24,11 +25,11 @@ Quick summary of what the module does.
 
 =head1 EXPORT
 
-write_outfile parse_perf
+write_outfile parse_perf parse_and_dump
 
 =cut
 
-our @EXPORT = qw( write_outfile parse_perf );
+our @EXPORT = qw( write_outfile parse_perf parse_and_dump );
 
 =head1 SUBROUTINES/METHODS
 
@@ -82,6 +83,32 @@ sub parse_perf {
         return %data;
     }
     return;
+}
+
+=head2 parse_and_dump
+
+Parse the file of the given name and dump it to a file of the same
+name with the csv extension added.
+
+=cut
+
+sub parse_and_dump {
+    my ($filename, $outfile) = @_;
+
+    $outfile = $filename . ".csv" unless $outfile;
+
+    open my $fh, "<", $filename;
+    my @data;
+    while ( not eof $fh ) {
+        if ( my %data = parse_perf($fh) ) {
+            push @data, {%data};
+        }
+    }
+    close $fh;
+
+    open my $oh, ">", $outfile;
+    write_outfile( $oh, @data );
+    close $oh;
 }
 
 =head1 AUTHOR
