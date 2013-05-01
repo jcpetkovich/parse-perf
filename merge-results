@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# merge-results.pl --- Merge datamill results.
+# merge-results --- Merge datamill results.
 # Author: Jean-Christophe Petkovich <jcpetkovich@gmail.com>
 # Created: 29 Apr 2013
 # Version: 0.01
@@ -15,6 +15,7 @@ use File::Spec::Functions qw( catfile rootdir );
 use File::Find::Rule;
 use Try::Tiny;
 use autodie;
+use Parse::Perf;
 use Data::Dumper;
 
 GetOptions();
@@ -28,8 +29,8 @@ my $rule = File::Find::Rule->new;
 sub get_job_row {
     my ($job_id) = @_;
 
-    my $file = shift $rule->new->find()->name("*_results_index.csv")
-      ->in($directory);
+    my $file =
+      shift $rule->new->find()->name("*_results_index.csv")->in($directory);
 
     my $fh = IO::File->new( $file, "r" );
     my $csv = Text::CSV->new( { binary => 1 } );
@@ -40,8 +41,7 @@ sub get_job_row {
     }
 }
 
-sub process_job {
-
+sub prepare_job {
     my ($job_tar_ball) = @_;
 
     my $job_dir = $job_tar_ball =~ s/\.tar\.gz$//r;
@@ -57,30 +57,39 @@ sub process_job {
 
     for my $file (@logs) {
         my $output = $file =~ s/\.txt/\.csv/r;
-        `parse-perf $file -o $output`;
+        parse_and_dump $file, $output;
     }
+}
+
+sub flatten_job_data {
+    my ($tarfile) = @_;
+    my $job_dir = $tarfile =~ s/\.tar\.gz$//r;
+
+    my $csvs = map { catfile( $job_dir, $_ ) }
+      $rule->new->file()->name("*.csv")->in($job_dir);
+
 }
 
 for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
     $tarfile = catfile( $directory, $tarfile );
-    process_job($tarfile);
+    prepare_job($tarfile);
 }
 
 __END__
 
 =head1 NAME
 
-merge-results.pl - Describe the usage of script briefly
+merge-results - Describe the usage of script briefly
 
 =head1 SYNOPSIS
 
-merge-results.pl [options] args
+merge-results [options] args
 
       -opt --long      Option description
 
 =head1 DESCRIPTION
 
-Stub documentation for merge-results.pl, 
+Stub documentation for merge-results, 
 
 =head1 AUTHOR
 
