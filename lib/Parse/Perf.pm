@@ -31,6 +31,9 @@ write_outfile parse_perf parse_and_dump
 
 our @EXPORT = qw( write_outfile parse_perf parse_and_dump );
 
+our @HEADER =
+  qw(perf_counter_name perf_counter_value perf_counter_throughput perf_scaling_percent);
+
 =head1 SUBROUTINES/METHODS
 
 =head2 write_outfile
@@ -42,7 +45,7 @@ Write the output in a CSV like way.
 sub write_outfile {
     my ( $oh, @data ) = @_;
 
-    print $oh "name,value,extra,percent\n";
+    print $oh join( ',', @HEADER ), "\n";
     for my $datum (@data) {
         say $oh join( ",",
             map { defined( $datum->{$_} ) ? $datum->{$_} : "" }
@@ -67,12 +70,12 @@ sub parse_perf {
     if ( $line =~ /^\s+\d+/ ) {
         my %data;
 
-        my ( $value, $measurment_name ) = $line =~ /^\s+([\d\.,]+)\s+(\S+)/;
+        my ( $value, $measurement_name ) = $line =~ /^\s+([\d\.,]+)\s+(\S+)/;
 
         $value =~ s/,//g;    # No american style numbers please
 
         $data{value} = $value;
-        $data{name}  = $measurment_name;
+        $data{name}  = $measurement_name;
 
         # Sometimes split across two lines
         $line = <$fh> unless $line =~ /#/;

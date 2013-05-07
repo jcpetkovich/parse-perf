@@ -24,7 +24,6 @@ WriteMakefile(
         'Try::Tiny' => 0.12,
         'Archive::Any' =>  0.0932,
         'Path::Class' => 0.32,
-        'List::MoreUtils' => 0.33,
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Parse-Perf-*' },

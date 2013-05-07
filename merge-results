@@ -7,18 +7,14 @@
 use v5.12;
 use warnings;
 use strict;
-use Text::CSV;
 use Getopt::Long qw( :config auto_help );
-use Carp;
 use Archive::Any;
-use File::Spec::Functions qw( catfile rootdir );
+use Text::CSV;
 use File::Find::Rule;
-use Try::Tiny;
 use Path::Class;
-use List::MoreUtils qw(zip);
-use autodie;
 use Parse::Perf;
-use Data::Dumper;
+use Try::Tiny;
+use autodie;
 
 GetOptions();
 
@@ -51,7 +47,7 @@ sub prepare_job {
 }
 
 for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
-    $tarfile = catfile( $directory, $tarfile );
+    $tarfile = file( $directory, $tarfile );
     prepare_job($tarfile);
 }
 
@@ -63,7 +59,7 @@ my $csv = Text::CSV->new( { binary => 1, auto_diag => 1 } );
 my $header = $csv->getline($fh);
 $header = [ grep { not /perf/ } @$header ];
 
-$csv->print(\*STDOUT, [ @$header, 'name', 'data', 'extra', 'percentage' ]);
+$csv->print(\*STDOUT, [ @$header, @Parse::Perf::HEADER ]);
 print "\n";
 while ( my $row = $csv->getline($fh) ) {
 
