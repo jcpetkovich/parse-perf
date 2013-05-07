@@ -14,38 +14,27 @@ use Archive::Any;
 use File::Spec::Functions qw( catfile rootdir );
 use File::Find::Rule;
 use Try::Tiny;
+use Path::Class;
+use List::MoreUtils qw(zip);
 use autodie;
 use Parse::Perf;
 use Data::Dumper;
 
 GetOptions();
 
-my $directory = '.';
+our $directory = '.';
 
 $directory = shift @ARGV if @ARGV > 0;
 
-my $rule = File::Find::Rule->new;
+our $rule = File::Find::Rule->new;
 
-sub get_job_row {
-    my ($job_id) = @_;
-
-    my $file =
-      shift $rule->new->find()->name("*_results_index.csv")->in($directory);
-
-    my $fh = IO::File->new( $file, "r" );
-    my $csv = Text::CSV->new( { binary => 1, auto_diag => 1 } );
-    while ( my $row = $csv->getline($fh) ) {
-        if ( $row->[1] =~ /$job_id/ ) {
-            return $row;
-        }
-    }
-}
+our $index_header = '';
 
 sub prepare_job {
     my ($job_tar_ball) = @_;
 
     my $job_dir = $job_tar_ball =~ s/\.tar\.gz$//r;
-    say $job_tar_ball;
+    say STDERR $job_tar_ball;
     try {
         mkdir $job_dir;
     };
@@ -61,18 +50,40 @@ sub prepare_job {
     }
 }
 
-sub flatten_job_data {
-    my ($tarfile) = @_;
-    my $job_dir = $tarfile =~ s/\.tar\.gz$//r;
-
-    my $csvs = map { catfile( $job_dir, $_ ) }
-      $rule->new->file()->name("*.csv")->in($job_dir);
-
-}
-
 for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
     $tarfile = catfile( $directory, $tarfile );
     prepare_job($tarfile);
+}
+
+my ($index) = $rule->new->file()->name("*_results_index.csv")->in($directory);
+my $fh = IO::File->new( $index, "r" );
+my $csv = Text::CSV->new( { binary => 1, auto_diag => 1 } );
+
+# Assuming perf metrics come last in the header.
+my $header = $csv->getline($fh);
+$header = [ grep { not /perf/ } @$header ];
+
+$csv->print(\*STDOUT, [ @$header, 'name', 'data', 'extra', 'percentage' ]);
+print "\n";
+while ( my $row = $csv->getline($fh) ) {
+
+    # Splice the row by the length of the header we produced
+    splice @$row, scalar @$header;
+
+    my $job_id = $row->[1];
+    my $results_dir = $job_id . "_results";
+
+    my @csvs = $rule->new->file()->name("*.csv")->in($results_dir);
+    
+    for my $csv_file (@csvs) {
+        say STDERR "In file: $csv_file";
+        my $csvfh = IO::File->new($csv_file);
+        my $results_header = $csv->getline($csvfh);
+        while (my $measurement = $csv->getline($csvfh)) {
+            $csv->print(\*STDOUT, [ @$row, @$measurement ]);
+            print "\n";
+        }
+    }
 }
 
 __END__
