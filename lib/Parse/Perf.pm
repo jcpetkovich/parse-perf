@@ -67,14 +67,14 @@ sub parse_perf {
     if ( $line =~ /^\s+\d+/ ) {
         my %data;
 
-        my ( $value, $measurment_name ) = $line =~ /^\s+([\d\.]+)\s+(\S+)/;
+        my ( $value, $measurment_name ) = $line =~ /^\s+([\d\.,]+)\s+(\S+)/;
         $data{value} = $value;
         $data{name}  = $measurment_name;
 
         # Sometimes split across two lines
         $line = <$fh> unless $line =~ /#/;
 
-        if ( my ($extra_data) = $line =~ /#\s+([\d\.]+)/ ) {
+        if ( my ($extra_data) = $line =~ /#\s+([\d\.,]+)/ ) {
             $data{extra_data} = $extra_data;
         }
         if ( my ($percentage) = $line =~ /\[(.*)%\]/ ) {
