@@ -24,20 +24,7 @@ if ( @ARGV != 1 ) {
 
 $filename = shift @ARGV;
 
-open my $fh, "<", $filename;
-my @data;
-while ( not eof $fh ) {
-    if ( my %data = parse_perf($fh) ) {
-        use Data::Dumper;
-        print Dumper( \%data );
-        push @data, {%data};
-    }
-}
-close $fh;
-
-open my $oh, ">", $outfile;
-write_outfile( $oh, @data );
-close $oh;
+parse_and_dump($filename, $outfile);
 
 __END__
 
