@@ -68,6 +68,9 @@ sub parse_perf {
         my %data;
 
         my ( $value, $measurment_name ) = $line =~ /^\s+([\d\.,]+)\s+(\S+)/;
+
+        $value =~ s/,//g;    # No american style numbers please
+
         $data{value} = $value;
         $data{name}  = $measurment_name;
 
@@ -93,7 +96,7 @@ name with the csv extension added.
 =cut
 
 sub parse_and_dump {
-    my ($filename, $outfile) = @_;
+    my ( $filename, $outfile ) = @_;
 
     $outfile = $filename . ".csv" unless $outfile;
 
