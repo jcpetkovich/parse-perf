@@ -36,6 +36,19 @@ our @HEADER =
 
 =head1 SUBROUTINES/METHODS
 
+=head2 write_line
+
+Write one line of the output csv from a given set of data
+
+=cut
+
+sub write_line {
+    my ( $oh, $datum ) = @_;
+    say $oh join( ",",
+        map { defined( $datum->{$_} ) ? $datum->{$_} : "" }
+          qw( name value extra_data percentage ) );
+}
+
 =head2 write_outfile
 
 Write the output in a CSV like way.
@@ -47,10 +60,51 @@ sub write_outfile {
 
     print $oh join( ',', @HEADER ), "\n";
     for my $datum (@data) {
-        say $oh join( ",",
-            map { defined( $datum->{$_} ) ? $datum->{$_} : "" }
-              qw( name value extra_data percentage ) );
+        write_line $oh, $datum;
     }
+}
+
+=head2 tokenize_perf
+
+Tokenize the file
+
+=cut
+
+sub tokenize_perf {
+    my ( $remainder, $fh ) = @_;
+
+    my $line;
+    if ($remainder) {
+        $line = $remainder;
+    }
+    else {
+        $line = <$fh>;
+    }
+
+    my ( @entry, $remaining );
+
+    # If line looks like an entry
+    if ( $line =~ /^\s+\d+/ ) {
+        push @entry, $line;
+
+        # if it isn't complete, read another line
+        unless ( $line =~ /\[/ ) {
+            $line = <$fh>;
+
+            # is it the start of another entry?
+            if ( $line =~ /^\s+\d+/ ) {
+
+                # It's a new entry
+                $remaining = $line;
+            } elsif ( $line =~ /\[/ ) {
+
+                # It's completing a previous entry
+                push @entry, $line;
+            }
+        }
+    }
+
+    return ( [@entry], $remaining );
 }
 
 =head2 parse_perf
@@ -63,8 +117,10 @@ Returns a hash table of the data or undef if no data was found.
 =cut
 
 sub parse_perf {
-    my ($fh) = @_;
-    my $line = <$fh>;
+    my ($entry) = @_;
+
+    return if @$entry == 0;
+    my $line = $entry->[0];
 
     # If line looks like an entry
     if ( $line =~ /^\s+\d+/ ) {
@@ -78,7 +134,7 @@ sub parse_perf {
         $data{name}  = $measurement_name;
 
         # Sometimes split across two lines
-        $line = <$fh> unless $line =~ /#/;
+        $line = $entry->[1] unless @$entry == 1;
 
         if ( my ($extra_data) = $line =~ /#\s+([\d\.,]+)/ ) {
             $data{extra_data} = $extra_data;
@@ -104,17 +160,22 @@ sub parse_and_dump {
     $outfile = $filename . ".csv" unless $outfile;
 
     open my $fh, "<", $filename;
-    my @data;
+    open my $oh, ">", $outfile;
+    print $oh join( ',', @HEADER ), "\n";
+    my $remainder;
+    use Data::Dumper;
     while ( not eof $fh ) {
-        if ( my %data = parse_perf($fh) ) {
-            push @data, {%data};
+
+        my $entry;
+        ( $entry, $remainder ) = tokenize_perf $remainder, $fh;
+
+        if ( my %data = parse_perf($entry) ) {
+            write_line $oh, {%data};
         }
     }
     close $fh;
-
-    open my $oh, ">", $outfile;
-    write_outfile( $oh, @data );
     close $oh;
+
 }
 
 =head1 AUTHOR

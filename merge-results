@@ -20,12 +20,16 @@ our $cleanup     = '';
 our $resultsfile = '';
 our $verbose     = '';
 our $byprogram   = '';
+our $addexpname  = '';
+our $prepare     = '';
 
 GetOptions(
-    '-c|cleanup' => \$cleanup,
-    '-o|output'  => \$resultsfile,
-    '-v|verbose' => \$verbose,
-    'byprogram'  => \$byprogram,
+    '-c|cleanup'  => \$cleanup,
+    '-o|output'   => \$resultsfile,
+    '-v|verbose'  => \$verbose,
+    'byprogram'   => \$byprogram,
+    'add-expname' => \$addexpname,
+    'prepare'     => \$prepare,
 );
 
 our $directory = '.';
@@ -65,9 +69,11 @@ sub prepare_job {
     }
 }
 
-for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
-    $tarfile = file( $directory, $tarfile );
-    prepare_job($tarfile);
+if ($prepare) {
+    for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
+        $tarfile = file( $directory, $tarfile );
+        prepare_job($tarfile);
+    }
 }
 
 my ($index) = $rule->new->file()->name("*_results_index.csv")->in($directory);
@@ -87,7 +93,13 @@ else {
 }
 
 # If we are separating by program, we need an additional space for the program used
-$csv->print( $oh, [ @$header, ( $byprogram ? "program" : () ), @Parse::Perf::HEADER ] );
+$csv->print(
+    $oh,
+    [
+        @$header, ( $byprogram ? "program" : () ),
+        ( $addexpname ? "addexpname" : () ), @Parse::Perf::HEADER
+    ]
+);
 print $oh "\n";
 while ( my $row = $csv->getline($fh) ) {
 
@@ -107,12 +119,28 @@ while ( my $row = $csv->getline($fh) ) {
             ($program) = $csv_file =~ /perflog-([^-]+)-/;
         }
 
+        # Get the experiment name (what was compared vs what)
+        my $vsname;
+        if ($addexpname) {
+            ($vsname) = $csv_file =~ /_([^_]+_vs_[^_]+)\.csv/;
+            print STDERR "FOUND: $vsname\n";
+        }
+
         say STDERR "In file: $csv_file";
         my $csvfh          = IO::File->new($csv_file);
         my $results_header = $csv->getline($csvfh);
         while ( my $measurement = $csv->getline($csvfh) ) {
+
             # If we are using by program, dump the program name as well
-            $csv->print( $oh, [ @$row, ($byprogram ? $program : ()), @$measurement ] );
+            $csv->print(
+                $oh,
+                [
+                    @$row,
+                    ( $byprogram  ? $program : () ),
+                    ( $addexpname ? $vsname  : () ),
+                    @$measurement
+                ]
+            );
             print $oh "\n";
         }
     }
