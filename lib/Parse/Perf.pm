@@ -96,7 +96,8 @@ sub tokenize_perf {
 
                 # It's a new entry
                 $remaining = $line;
-            } elsif ( $line =~ /\[/ ) {
+            }
+            elsif ( $line =~ /\[/ ) {
 
                 # It's completing a previous entry
                 push @entry, $line;
@@ -131,7 +132,9 @@ sub parse_perf {
         $value =~ s/,//g;    # No american style numbers please
 
         $data{value} = $value;
-        $data{name}  = $measurement_name;
+
+        # Lowercase the name, because perf is inconsistent
+        $data{name} = lc $measurement_name;
 
         # Sometimes split across two lines
         $line = $entry->[1] unless @$entry == 1;
