@@ -120,29 +120,58 @@ while ( my $row = $csv->getline($fh) ) {
         }
 
         # Get the experiment name (what was compared vs what)
-        my $vsname;
+        my ( $vsname, $a_name, $b_name );
         if ($addexpname) {
             ($vsname) = $csv_file =~ /_([^_]+_vs_[^_]+)\.csv/;
+
+            # Counter A vs counter B (lowercased)
+            ( $a_name, $b_name ) = sort map { lc } split( "_vs_", $vsname );
+            $vsname = join( "_vs_", $a_name, $b_name );
             print STDERR "FOUND: $vsname\n";
         }
 
-        say STDERR "In file: $csv_file";
+        say STDERR "NAMES: A: $a_name vs B: $b_name";
+
+        say STDERR "USING: $csv_file";
+
+        # Read in CSV to a hash table to order data as in the experiment name
         my $csvfh          = IO::File->new($csv_file);
         my $results_header = $csv->getline($csvfh);
+        my %trial_results;
         while ( my $measurement = $csv->getline($csvfh) ) {
+            say STDERR Dumper($measurement);
 
-            # If we are using by program, dump the program name as well
-            $csv->print(
-                $oh,
-                [
-                    @$row,
-                    ( $byprogram  ? $program : () ),
-                    ( $addexpname ? $vsname  : () ),
-                    @$measurement
-                ]
-            );
-            print $oh "\n";
+            my $translated =
+              translate_name( [ $a_name, $b_name ], $measurement->[0] );
+
+            say STDERR "TRANSLATION: Original: ", $measurement->[0],
+              " Translated: ", $translated;
+
+            $trial_results{ $measurement->[0] } =
+              [ @$measurement[ 1 .. $#$measurement ] ];
         }
+
+        say STDERR "DATA: ", Dumper( \%trial_results );
+
+        # If we can't find the row, fill it with empty strings
+        my @trial_row =
+          map { $trial_results{$_} ? @{ $trial_results{$_} } : ("") x 3; }
+          ( $a_name, $b_name );
+
+        say STDERR "ROW: ", join( ", ", @trial_row );
+
+        # If we are using by program, dump the program name as well
+        $csv->print(
+            $oh,
+            [
+                @$row,
+                ( $byprogram  ? $program : () ),
+                ( $addexpname ? $vsname  : () ),
+                @trial_row
+            ]
+        );
+        print $oh "\n";
+
     }
 }
 
