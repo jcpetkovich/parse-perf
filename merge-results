@@ -14,7 +14,9 @@ use File::Find::Rule;
 use Path::Class;
 use Parse::Perf;
 use Try::Tiny;
+use Scalar::Util qw( looks_like_number );
 use autodie;
+use Data::Dumper;
 
 our $cleanup     = '';
 our $resultsfile = '';
@@ -69,6 +71,91 @@ sub prepare_job {
     }
 }
 
+=head2 intersection
+
+Simple intersection of two arrays.
+
+=cut
+
+sub intersection {
+    my ( $first, $second ) = @_;
+
+    my ( %union, %isect );
+    for my $e ( @$first, @$second ) {
+        $union{$e}++ && $isect{$e}++;
+    }
+    my @isect = keys %isect;
+
+    return @isect;
+}
+
+=head2 translate_name
+
+Name translations follow the following rules:
+
+| perf output      | possible translation                                                     |
+|------------------+--------------------------------------------------------------------------|
+| branches         | branch-instructions                                                      |
+| CPU-migrations   | cpu-migrations                                                           |
+| cycles           | cpu-cycles, stalled-cycles-backend, stalled-cycles-frontend              |
+| dTLB-misses      | dtlb-load-misses, dtlb-prefetch-misses, dtlb-store-misses                |
+| iTLB-misses      | itlb-load-misses                                                         |
+| L1-dcache-misses | l1-dcache-load-misses, l1-dcache-prefetch-misses, l1-dcache-store-misses |
+| L1-icache-misses | l1-icache-load-misses, l1-icache-prefetch-misses                         |
+| LLC-misses       | llc-load-misses, llc-prefetch-misses, llc-store-misses                   |
+
+Perf output uses shorthand for several different names during the
+output process. Givin the events passed to perf-stat, and given the
+output variables, this table will be used to produce the correct
+translation.
+
+Since perf-stat output also uses inconsistent casing, all names are
+put into lower case to avoid mismatched names.
+
+=cut
+
+my %perf_translation_table = (
+    "branches"       => [qw( branch-instructions )],
+    "cpu-migrations" => [qw( cpu-migrations )],
+    "cycles" =>
+      [qw( cpu-cycles stalled-cycles-backend stalled-cycles-frontend )],
+    "dtlb-misses" =>
+      [qw( dtlb-load-misses dtlb-prefetch-misses dtlb-store-misses )],
+    "itlb-misses"      => [qw( itlb-load-misses )],
+    "l1-dcache-misses" => [
+        qw( l1-dcache-load-misses l1-dcache-prefetch-misses l1-dcache-store-misses )
+    ],
+    "l1-icache-misses" =>
+      [qw( l1-icache-load-misses l1-icache-prefetch-misses )],
+    "llc-misses" =>
+      [qw( llc-load-misses llc-prefetch-misses llc-store-misses )],
+);
+
+sub translate_name {
+    my ( $input_events, $output_event ) = @_;
+
+    if ( $perf_translation_table{$output_event} ) {
+        my @isect =
+          intersection( $input_events, $perf_translation_table{$output_event} );
+
+        say STDERR "WARNING: > 1 match found for translation of $output_event"
+          if ( @isect > 1 );
+
+        if ( @isect == 0 ) {
+            say STDERR
+              "ERROR: no translation found for known event $output_event";
+            die "Couldn't find translation for ", Dumper($input_events),
+              " and ", Dumper($output_event);
+        }
+
+        return $isect[0];
+
+    }
+    else {
+        return $output_event;
+    }
+}
+
 if ($prepare) {
     for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
         $tarfile = file( $directory, $tarfile );
@@ -96,8 +183,18 @@ else {
 $csv->print(
     $oh,
     [
-        @$header, ( $byprogram ? "program" : () ),
-        ( $addexpname ? "addexpname" : () ), @Parse::Perf::HEADER
+        @$header,
+        ( $byprogram  ? "program"    : () ),
+        ( $addexpname ? "addexpname" : () ),
+        (
+            map {
+                (
+                    $_ . "_perf_counter_value",
+                    $_ . "_perf_counter_throughput",
+                    $_ . "_perf_scaling_percent"
+                  )
+            } ( "A", "B" )
+        )
     ]
 );
 print $oh "\n";
