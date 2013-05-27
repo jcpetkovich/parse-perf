@@ -156,6 +156,28 @@ sub translate_name {
     }
 }
 
+sub csv_to_results_hash {
+    my ($csv_file) = @_;
+
+    my $csvfh          = IO::File->new($csv_file);
+    my $results_header = $csv->getline($csvfh);
+    my %trial_results;
+    while ( my $measurement = $csv->getline($csvfh) ) {
+        say STDERR Dumper($measurement);
+
+        my $translated =
+            translate_name( [ $a_name, $b_name ], $measurement->[0] );
+
+        say STDERR "TRANSLATION: Original: ", $measurement->[0],
+            " Translated: ", $translated;
+
+        $trial_results{ $measurement->[0] } =
+            [ @$measurement[ 1 .. $#$measurement ] ];
+    }
+
+    return %trial_results;
+}
+
 if ($prepare) {
     for my $tarfile ( $rule->new->file()->name("*.tar.gz")->in($directory) ) {
         $tarfile = file( $directory, $tarfile );
@@ -232,21 +254,7 @@ while ( my $row = $csv->getline($fh) ) {
         say STDERR "USING: $csv_file";
 
         # Read in CSV to a hash table to order data as in the experiment name
-        my $csvfh          = IO::File->new($csv_file);
-        my $results_header = $csv->getline($csvfh);
-        my %trial_results;
-        while ( my $measurement = $csv->getline($csvfh) ) {
-            say STDERR Dumper($measurement);
-
-            my $translated =
-              translate_name( [ $a_name, $b_name ], $measurement->[0] );
-
-            say STDERR "TRANSLATION: Original: ", $measurement->[0],
-              " Translated: ", $translated;
-
-            $trial_results{ $measurement->[0] } =
-              [ @$measurement[ 1 .. $#$measurement ] ];
-        }
+        my %trial_results = csv_to_results_hash($csv_file);
 
         say STDERR "DATA: ", Dumper( \%trial_results );
 
